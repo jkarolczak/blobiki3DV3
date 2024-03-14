@@ -1,20 +1,23 @@
+from __future__ import annotations
+
+import numpy as np
 import pandas as pd
 
 
 class FShape:
-    def __init__(self, fshape: list[float], acid: list[str]) -> None:
+    def __init__(self, fshape: np.ndarray, acid: np.ndarray) -> None:
         self.fshape = fshape
         self.acid = acid
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame) -> "FShape":
+    def from_dataframe(df: pd.DataFrame) -> FShape:
         return FShape(
-            df["fshape"].tolist(),
-            df["acid"].tolist()
+            df["fshape"].to_numpy(),
+            df["acid"].to_numpy()
         )
 
     def __len__(self):
         return len(self.fshape)
 
     def __repr__(self):
-        return f"FShape(fshape={self.fshape}, acid={self.acid})"
+        return f"FShape(fshape={self.fshape.tolist()}, acid={self.acid.tolist()})"
