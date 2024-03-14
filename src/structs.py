@@ -8,6 +8,7 @@ class FShape:
     def __init__(self, fshape: np.ndarray, acid: np.ndarray) -> None:
         self.fshape = fshape
         self.acid = acid
+        self.meta = dict()
 
     @staticmethod
     def from_dataframe(df: pd.DataFrame) -> FShape:
