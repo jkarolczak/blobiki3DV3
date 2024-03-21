@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -15,11 +16,12 @@ class FShapeFileReader:
     def read(self) -> FShape:
         df = pd.read_csv(
             self.file_path,
+            usecols=[0, 1],
             sep="\t",
             na_values="NA",
             names=["fshape", "acid"]
         )
-        return FShape.from_dataframe(df)
+        return FShape.from_dataframe(df, file_name=os.path.split(self.file_path)[1])
 
 
 class FShapeDirectoryReader:

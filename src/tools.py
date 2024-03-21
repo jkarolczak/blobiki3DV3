@@ -2,6 +2,7 @@ from abc import ABC
 from collections import Counter
 
 import numpy as np
+import pandas as pd
 import stumpy
 
 from structs import FShape
@@ -49,7 +50,7 @@ class AgglomerativeClusterer(IClusterer):
         self.clusterer = AgglomerativeClustering(n_clusters=None, distance_threshold=eps)
 
 
-class ConsensusMotifs:
+class ConsensusMotifsFinder:
 
     def _compute_largest_clusters(self, clusters: dict[int, list[int]]) -> list[tuple]:
         largest = []
@@ -70,6 +71,45 @@ class ConsensusMotifs:
             consensus = cluster_motifs[consensus[1]]
             consensus_motifs.append(consensus)
         return consensus_motifs
+
+
+class SimilarMotifsFinder:
+    def __init__(self, consensus_motifs: list[FShape], expected_motif: FShape):
+        self.expected_motif = expected_motif
+        self.consensus_motifs = consensus_motifs
+
+    def compute_similar(self, motifs: list[FShape]) -> pd.DataFrame:
+        similar_motifs = []
+        for pattern in [self.expected_motif, *self.consensus_motifs]:
+            for motif in motifs:
+                matrix_profile = stumpy.stump(T_A=motif.fshape, m=len(pattern.fshape), T_B=pattern.fshape, ignore_trivial=False)
+                indices = np.argwhere(matrix_profile[:, 0] <= 2.5).flatten()
+                for ind in indices:
+                    acid = motif.acid[ind:ind + len(pattern.fshape)]
+                    zned = matrix_profile[ind, 0]
+                    ssf = self.compute_ssf(acid, pattern.acid)
+                    asd = 10 * zned - ssf
+                    similar_motifs.append(
+                        [''.join(acid), (ind, ind + len(pattern.fshape) - 1), motif.meta['file_name'], zned, ssf, asd,
+                         ''.join(pattern.acid)])
+        similar_motifs = pd.DataFrame(similar_motifs,
+                                      columns=['new_motif', 'nucleotides_range', 'file', 'zned', 'ssf', 'as',
+                                               'consensus_pattern'])
+        similar_motifs = similar_motifs.sort_values(by=['as'])
+        return similar_motifs
+
+    def compute_ssf(self, similar_motif_acid: np.ndarray, expected_motif_acid: np.ndarray) -> float:
+        counter = 0
+        for s, e in zip(similar_motif_acid, expected_motif_acid):
+            if s == e or e == 'N':
+                counter += 2
+            elif s in ['A', 'G'] and e in ['A', 'G']:
+                counter += 1
+            elif s in ['C', 'U'] and e in ['C', 'U']:
+                counter += 1
+            elif s in ['T', 'C'] and e in ['T', 'C']:
+                counter += 1
+        return counter / len(expected_motif_acid)
 
 
 if __name__ == "__main__":
