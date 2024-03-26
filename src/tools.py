@@ -82,21 +82,40 @@ class SimilarMotifsFinder:
         similar_motifs = []
         for pattern in [self.expected_motif, *self.consensus_motifs]:
             for motif in motifs:
-                matrix_profile = stumpy.stump(T_A=motif.fshape, m=len(pattern.fshape), T_B=pattern.fshape, ignore_trivial=False)
+                matrix_profile = stumpy.stump(T_A=motif.fshape, m=len(pattern.fshape), T_B=pattern.fshape,
+                                              ignore_trivial=False)
                 indices = np.argwhere(matrix_profile[:, 0] <= 2.5).flatten()
                 for ind in indices:
                     acid = motif.acid[ind:ind + len(pattern.fshape)]
-                    zned = matrix_profile[ind, 0]
-                    ssf = self.compute_ssf(acid, pattern.acid)
-                    asd = 10 * zned - ssf
-                    similar_motifs.append(
-                        [''.join(acid), (ind, ind + len(pattern.fshape) - 1), motif.meta['file_name'], zned, ssf, asd,
-                         ''.join(pattern.acid)])
+                    fshape = motif.fshape[ind:ind + len(pattern.fshape)]
+                    acids_same_len = self.compute_same_len(acid, self.expected_motif.acid)
+                    fshapes_same_len = self.compute_same_len(fshape, self.expected_motif.fshape)
+                    for a, f in zip(acids_same_len, fshapes_same_len):
+                        zned = self.compute_zned(f, self.expected_motif.fshape)
+                        ssf = self.compute_ssf(a, self.expected_motif.acid)
+                        asd = 10 * zned - ssf
+                        similar_motifs.append(
+                            [''.join(acid), ''.join(a), (ind, ind + len(pattern.fshape) - 1), len(acid), motif.meta['file_name'], zned, ssf,
+                             asd, ''.join(pattern.acid)])
         similar_motifs = pd.DataFrame(similar_motifs,
-                                      columns=['new_motif', 'nucleotides_range', 'file', 'zned', 'ssf', 'as',
-                                               'consensus_pattern'])
+                                      columns=['new_motif', 'new_motif_same_len', 'nucleotides_range', 'len_new_motif', 'file', 'zned', 'ssf', 'as', 'consensus_motif'])
         similar_motifs = similar_motifs.sort_values(by=['as'])
         return similar_motifs
+
+    @staticmethod
+    def compute_same_len(similar_motif: np.ndarray, expected_motif: np.ndarray):
+        if len(similar_motif) == len(expected_motif):
+            return [similar_motif]
+        elif len(similar_motif) - len(expected_motif) == 1:
+            return [similar_motif[1:], similar_motif[:-1]]
+        elif len(similar_motif) - len(expected_motif) == 2:
+            return [similar_motif[1:-1]]
+
+    @staticmethod
+    def compute_zned(similar_motif_fshape: np.ndarray, expected_motif_fshape: np.ndarray) -> float:
+        matrix_profile = stumpy.stump(T_A=similar_motif_fshape, m=len(similar_motif_fshape), T_B=expected_motif_fshape,
+                                      ignore_trivial=False)
+        return matrix_profile[0, 0]
 
     def compute_ssf(self, similar_motif_acid: np.ndarray, expected_motif_acid: np.ndarray) -> float:
         counter = 0

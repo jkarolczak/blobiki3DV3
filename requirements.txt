@@ -1,3 +1,6 @@
-pandas
+pandas~=2.2.1
 scikit-learn
-stumpy
+stumpy~=1.12.0
+
+numpy~=1.26.4
+matplotlib~=3.8.3
