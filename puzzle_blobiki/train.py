@@ -14,16 +14,16 @@ from src.model import BlobNet
 @click.option("--device", default="cpu", help="Device")
 @click.option("--batch-size", default=32, help="Batch size")
 @click.option("--num-epochs", default=10, help="Number of epochs")
-@click.option("--learning-rate", type=float, default=1e-3, help="Learning rate")
+@click.option("--learning-rate", type=float, default=1e-2, help="Learning rate")
 @click.option("--hidden-size", default=128, help="Hidden size")
 @click.option("--num-transformers", default=8, help="Number of transformers")
-@click.option("--num-lstms", default=64, help="Number of LSTMs")
+@click.option("--num-extractors", default=4, help="Number of feature extraction layers")
 @click.option("--dropout", default=0.0, help="Dropout")
 @click.option("--log", "log", flag_value=True, default=False, help="Log into wandb")
 def main(strategy: str, device: str, batch_size: int, num_epochs: int, learning_rate: float, hidden_size: int,
-         num_transformers: int, num_lstms: int, dropout: float, log: bool) -> None:
+         num_transformers: int, num_extractors: int, dropout: float, log: bool) -> None:
     data = Data(strategy=Strategy[strategy], device=device)
-    model = BlobNet(hidden_size=hidden_size, num_transformers=num_transformers, num_lstms=num_lstms, batch_size=batch_size,
+    model = BlobNet(hidden_size=hidden_size, num_transformers=num_transformers, num_extractors=num_extractors,
                     dropout=dropout).to(torch.device(device))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = torch.nn.MSELoss()
@@ -31,12 +31,13 @@ def main(strategy: str, device: str, batch_size: int, num_epochs: int, learning_
     print(f"Train: {len(data.train)} instances, mean: {data.train.mean: 2.4f}, std: {data.train.std: 2.4f}")
     print(f"Valid: {len(data.valid)} instances, mean: {data.valid.mean: 2.4f}, std: {data.valid.std: 2.4f}")
     print(f"Test: {len(data.test)} instances, mean: {data.test.mean: 2.4f}, std: {data.test.std: 2.4f}")
+    print("=" * 30)
     not log or wandb.init(
         project="rna-puzzles",
         config={
             "strategy": strategy, "device": device, "batch_size": batch_size, "num_epochs": num_epochs,
             "learning_rate": learning_rate, "hidden_size": hidden_size, "num_transformers": num_transformers,
-            "num_lstms": num_lstms, "dropout": dropout,
+            "num_extractors": num_extractors, "dropout": dropout,
             "train_size": len(data.train), "train_mean": data.train.mean, "train_std": data.train.std,
             "valid_size": len(data.valid), "valid_mean": data.valid.mean, "valid_std": data.valid.std,
             "test_size": len(data.test), "test_mean": data.test.mean, "test_std": data.test.std
@@ -44,9 +45,8 @@ def main(strategy: str, device: str, batch_size: int, num_epochs: int, learning_
     )
 
     for epoch in range(num_epochs):
-        if not log:
-            print("=" * 30)
-            print(f"Epoch {epoch + 1}")
+        print("=" * 30)
+        print(f"Epoch {epoch + 1}")
         # Train
         model.train()
         loss_history = []
@@ -55,6 +55,7 @@ def main(strategy: str, device: str, batch_size: int, num_epochs: int, learning_
             y_hat = model(x)
             loss = criterion(y_hat, y)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
             loss_history.append(sqrt(loss.item()))
         print(f"\tTrain RMSE: {mean(loss_history): 2.4f}")
