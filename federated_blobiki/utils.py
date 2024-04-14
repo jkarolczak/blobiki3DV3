@@ -200,9 +200,13 @@ def load_csv_fle(file_path, class_col="Class", train_ratio=0.75):
         train_max, train_min = df_train[c].max(), df_train[c].min()
         logger.info(f"Column {c} => replacement = {known} | {train_min} .. {train_max}")
         train_range = train_max - train_min
-        if train_range != 0:
-            df_train[c] = (df_train[c] - train_min) / train_range
-            df_test[c] = (df_test[c] - train_min) / train_range
+        if train_range > 0:
+            df_train[c] = 2*((df_train[c] - train_min) / train_range) - 1
+            df_test[c] = 2*((df_test[c] - train_min) / train_range) - 1
+        else:
+            df_train[c] = 0
+            df_test[c] = 0
+
     return _to_X_y(df_train) + _to_X_y(df_test)
 
 
@@ -619,7 +623,13 @@ def put_trainable_parameters(net,X):
             params.data.copy_(X[offset:offset+numel].data.view_as(params.data))
         offset+=numel
 
-def compute_accuracy(model, dataloader, get_confusion_matrix=False, moon_model=False, device="cpu"):
+
+def compute_gmean(conf_matrix):
+    n_classes = conf_matrix.shape[0]
+    class_acc = [conf_matrix[i][i] / conf_matrix[i].sum() for i in range(n_classes)]
+    return np.prod(class_acc)**(1/n_classes)
+
+def compute_accuracy(model, dataloader, moon_model=False, device="cpu"):
     was_training = False
     if model.training:
         model.eval()
@@ -653,16 +663,13 @@ def compute_accuracy(model, dataloader, get_confusion_matrix=False, moon_model=F
                     pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                     true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
 
-    if get_confusion_matrix:
-        conf_matrix = confusion_matrix(true_labels_list, pred_labels_list)
+    conf_matrix = confusion_matrix(true_labels_list, pred_labels_list)
 
     if was_training:
         model.train()
 
-    if get_confusion_matrix:
-        return correct/float(total), conf_matrix
+    return correct/float(total), conf_matrix, compute_gmean(conf_matrix)
 
-    return correct/float(total)
 
 
 def save_model(model, model_index, args):

@@ -1,7 +1,8 @@
-scikit-learn==0.22.1
-numpy==1.18.1
-scipy==1.4.1
-torch==1.9.0
-torchvision==0.3.0
-pandas==0.24.2
-requests==2.23.0
+# Minimum versions from the original repo
+scikit-learn>=0.22.1
+numpy>=1.18.1
+scipy>=1.4.1
+torch>=1.1.0
+torchvision>=0.3.0
+pandas>=0.24.2
+requests>=2.23.0

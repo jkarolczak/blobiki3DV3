@@ -63,6 +63,25 @@ def assign_examples_to_clients(y_train, n_parties, partition):
         if np.sum(client_sizes) < total_examples:
             remaining_examples = np.setdiff1d(np.arange(n_train), np.concatenate(batch_idxs))
             batch_idxs[-1] = np.concatenate((batch_idxs[-1], remaining_examples))
+    elif partition == "small_balanced":
+        total_examples = len(y_train)
+        client_sizes = (np.random.beta(5, 2, size=n_parties) * total_examples).astype(int)
+        client_sizes = np.round(client_sizes / np.sum(client_sizes) * total_examples).astype(int)
+        class_counts = np.bincount(y_train)
+        weights = np.zeros_like(y_train, dtype=float)
+        weights[y_train == 0] = class_counts[0]
+        weights[y_train == 1] = class_counts[1]
+        batch_idxs = []
+        for size in client_sizes:
+            weights /= np.sum(weights)
+            size = min(size, len(weights))
+            idx = np.random.choice(np.arange(n_train), size=size, replace=False, p=weights)
+            batch_idxs.append(idx)
+            weights = np.delete(weights, idx)
+            n_train -= size
+        if np.sum(client_sizes) < total_examples:
+            remaining_examples = np.setdiff1d(np.arange(n_train), np.concatenate(batch_idxs))
+            batch_idxs[-1] = np.concatenate((batch_idxs[-1], remaining_examples))
     elif partition == "small_random":
         total_examples = len(y_train)
         client_sizes = np.random.beta(2, 5, size=n_parties) * total_examples
@@ -74,25 +93,25 @@ def assign_examples_to_clients(y_train, n_parties, partition):
         if np.sum(client_sizes) < total_examples:
             remaining_examples = np.setdiff1d(np.arange(n_train), np.concatenate(batch_idxs))
             batch_idxs[-1] = np.concatenate((batch_idxs[-1], remaining_examples))
-        elif partition == "large_balanced":
-            total_examples = len(y_train)
-            client_sizes = (np.random.beta(5, 2, size=n_parties) * total_examples).astype(int)
-            client_sizes = np.round(client_sizes / np.sum(client_sizes) * total_examples).astype(int)
-            class_counts = np.bincount(y_train)
-            weights = np.zeros_like(y_train, dtype=float)
-            weights[y_train == 0] = class_counts[0]
-            weights[y_train == 1] = class_counts[1]
-            batch_idxs = []
-            for size in client_sizes:
-                weights /= np.sum(weights)
-                size = min(size, len(weights))
-                idx = np.random.choice(np.arange(n_train), size=size, replace=False, p=weights)
-                batch_idxs.append(idx)
-                weights = np.delete(weights, idx)
-                n_train -= size
-            if np.sum(client_sizes) < total_examples:
-                remaining_examples = np.setdiff1d(np.arange(n_train), np.concatenate(batch_idxs))
-                batch_idxs[-1] = np.concatenate((batch_idxs[-1], remaining_examples))
+    elif partition == "large_balanced":
+        total_examples = len(y_train)
+        client_sizes = (np.random.beta(5, 2, size=n_parties) * total_examples).astype(int)
+        client_sizes = np.round(client_sizes / np.sum(client_sizes) * total_examples).astype(int)
+        class_counts = np.bincount(y_train)
+        weights = np.zeros_like(y_train, dtype=float)
+        weights[y_train == 0] = class_counts[0]
+        weights[y_train == 1] = class_counts[1]
+        batch_idxs = []
+        for size in client_sizes:
+            weights /= np.sum(weights)
+            size = min(size, len(weights))
+            idx = np.random.choice(np.arange(n_train), size=size, replace=False, p=weights)
+            batch_idxs.append(idx)
+            weights = np.delete(weights, idx)
+            n_train -= size
+        if np.sum(client_sizes) < total_examples:
+            remaining_examples = np.setdiff1d(np.arange(n_train), np.concatenate(batch_idxs))
+            batch_idxs[-1] = np.concatenate((batch_idxs[-1], remaining_examples))
     elif partition == "large_random":
         total_examples = len(y_train)
         client_sizes = (np.random.beta(5, 2, size=n_parties) * total_examples).astype(int)
