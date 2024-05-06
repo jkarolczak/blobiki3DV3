@@ -1,0 +1,4 @@
+/notebooks/.ipynb_checkpoints/
+/resultsT20
+/**/__pycache__
+*.csv
