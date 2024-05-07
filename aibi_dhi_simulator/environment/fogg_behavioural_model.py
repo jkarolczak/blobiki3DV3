@@ -11,12 +11,13 @@ from gymnasium import error, spaces, utils
 class Patient(Env):
 
     def __init__(self, behaviour_threshold=25, has_family=True,
-                 good_time=1, habituation=False, patient_profile=0, time_preference_update_step = 100000000, compete_threshold=0.1):
+                 good_time=1, habituation=False, patient_profile=0, time_preference_update_step=100000000,
+                 compete_threshold=0.1):
         self.behaviour_threshold = behaviour_threshold
         self.patient_profile = patient_profile
         self.has_family = has_family
         self.compete_threshold = compete_threshold
-        self.good_time = good_time # 0 morning, 1 midday, 2 evening, 3 night
+        self.good_time = good_time  # 0 morning, 1 midday, 2 evening, 3 night
         self.habituation = habituation
         self.time_preference_update_step = time_preference_update_step
         self.action_space = spaces.Discrete(2)
@@ -43,8 +44,9 @@ class Patient(Env):
         self._start_time_randomiser()
         self.time_of_the_day = self.hours[0]
         self.day_of_the_week = self.week_days[0]  # 1 Monday, 7 Sunday
-        self.motion_activity_list = random.choices(['stationary', 'walking'], weights=(1.0, 0.0), k=24) # in last 24 hours
-        self.awake_list = random.choices(['sleeping', 'awake'], weights=(0.15, 0.85), k=24)# insomnia
+        self.motion_activity_list = random.choices(['stationary', 'walking'], weights=(1.0, 0.0),
+                                                   k=24)  # in last 24 hours
+        self.awake_list = random.choices(['sleeping', 'awake'], weights=(0.15, 0.85), k=24)  # insomnia
         self.last_activity_score = np.random.randint(0, 2)  # 0 negative, 1 positive
         self.location = 'home' if 1 < self.time_of_the_day < 7 else np.random.choice(['home', 'other'])
         self._update_emotional_state()
@@ -52,6 +54,8 @@ class Patient(Env):
         self.h_slept = []
         self.h_positive = []
         self.h_nonstationary = []
+        self.record = -1
+        self.record_broken = False
         self.observation_list = [self._get_current_state()]
         self.reset()
         # valence =1 #negative/ positive
@@ -79,7 +83,7 @@ class Patient(Env):
     def update_after_day(self):
         if self.activity_s != 0:
             self.rr.append(self.activity_p / self.activity_s)
-        else: # unsucessful training
+        else:  # unsucessful training
             self.rr.append(np.nan)
             # self.num_notified.append(np.nan)
         self.num_notified.append(self.activity_s)
@@ -87,9 +91,12 @@ class Patient(Env):
         self.h_slept.append(self.awake_list[-24:].count('sleeping'))
         self.h_positive.append(sum(self.valence_list[-24:]))
         self.h_nonstationary.append(self.motion_activity_list[-24:].count('walking'))
+        if self.motion_activity_list[-24:].count('walking') > self.record:
+            self.record = self.motion_activity_list[-24:].count('walking')
+            self.record_broken = True
         self.reset()
         if self.habituation:
-            self.behaviour_threshold = self.behaviour_threshold + 0.15 # increase the threshold for performing action
+            self.behaviour_threshold = self.behaviour_threshold + 0.15  # increase the threshold for performing action
 
     def step(self, action: tuple):
         info = self._get_current_info(action)
@@ -122,10 +129,9 @@ class Patient(Env):
         else:
             done = False
         if self.env_steps > self.time_preference_update_step:
-            self.good_time = 2 # update time preference to be in the evening
-        state = self._get_current_state() 
+            self.good_time = 2  # update time preference to be in the evening
+        state = self._get_current_state()
         return state, reward, done, False, info
-
 
     # Work-around for Gymnasium
     def _get_current_info(self, action):
@@ -135,7 +141,6 @@ class Patient(Env):
         info['trigger'] = self.get_trigger()
         info['action'] = action
         return info
-
 
     def _get_current_state(self):
         # valence =1 #negative/ positive
@@ -162,9 +167,9 @@ class Patient(Env):
         number_of_hours_slept = 1 if self.awake_list[-24:].count('sleeping') >= 7 else 0
 
         obs = np.array([self.valence, self.arousal, self.cognitive_load,
-                         sleeping, number_of_hours_slept, self.last_activity_score, t,
-                         location, d[self.motion_activity_list[-1]],
-                         day_time, week_day, self.activity_s, self.activity_p])
+                        sleeping, number_of_hours_slept, self.last_activity_score, t,
+                        location, d[self.motion_activity_list[-1]],
+                        day_time, week_day, self.activity_s, self.activity_p])
         return obs
 
     def _time_since_last_activity(self):
@@ -364,12 +369,12 @@ class Patient(Env):
         if self.activity_performed[-1] == 1:
             weights = (0, 1)
         else:
-            threshold = 0.3 # equivalent to 6 h daily
+            threshold = 0.3  # equivalent to 6 h daily
             threshold_increase = self._break_record() + self._compete_with_peers()
             threshold += threshold_increase
             w_r = self.motion_activity_list.count('walking') / len(self.motion_activity_list)
             w = w_r if w_r < threshold else threshold
-            st = 1-w
+            st = 1 - w
             weights = (st, w)
         self.motion_activity_list.append(random.choices(['stationary', 'walking'], weights=weights, k=1)[0])
 
@@ -390,12 +395,12 @@ class Patient(Env):
              - walking (+) """
 
         if self.activity_p > 0:
-            awake_prb = self.health_sleep[self.time_of_the_day] # healthy sleeping
+            awake_prb = self.health_sleep[self.time_of_the_day]  # healthy sleeping
         else:
             if self.arousal == 2 and self.valence == 0:
-                awake_prb = self.insomnia[self.time_of_the_day]# insomnia
+                awake_prb = self.insomnia[self.time_of_the_day]  # insomnia
             else:
-                awake_prb = self.semihealthy_sleep[self.time_of_the_day]# semi-healthy
+                awake_prb = self.semihealthy_sleep[self.time_of_the_day]  # semi-healthy
 
         now_awake = random.choices(['sleeping', 'awake'], weights=(1 - awake_prb, awake_prb), k=1)
         self.awake_list.append(now_awake[0])
@@ -446,7 +451,7 @@ class Patient(Env):
         neg_factors = insufficient_exercise + annoyed + insufficient_sleep
 
         if self.motion_activity_list[-1] == 'walking':
-            self.valence,  self.arousal = 1, 1
+            self.valence, self.arousal = 1, 1
         else:
             if neg_factors >= 2:
                 self.valence = 0
@@ -471,8 +476,8 @@ class Patient(Env):
         if self.activity_s > 0:
             self.cognitive_load = 1 if self.activity_p / self.activity_s < 0.5 else 0
         else:
-            self.cognitive_load = np.random.randint(0, 1) 
-            
+            self.cognitive_load = np.random.randint(0, 1)
+
     def _update_patients_activity_score(self):
         """"
         Williams et al (2012) "Does Affective Valence During and Immediately Following a 10-Min Walk Predict Concurrent
@@ -490,8 +495,9 @@ class Patient(Env):
 
     def _better_than_peers(self):
         act_frac = self.motion_activity_list.count('walking') / len(self.motion_activity_list)
-        # we simulate the peers activities as the normal distribution assuming that an average person would walk 3 hours a day
-        normal_dist = np.random.normal(loc=3/24, scale=1/24)
+        # we simulate the peers activities as the normal distribution assuming that an average person would walk 3
+        # hours a day
+        normal_dist = np.random.normal(loc=3 / 24, scale=1 / 24)
         if normal_dist < act_frac:
             print('yes')
             return 1
@@ -500,16 +506,19 @@ class Patient(Env):
     def _compete_with_peers(self):
         if self.patient_profile == 2 or (self.patient_profile == 3 and random.random() >= 0.5):
             act_frac = self.motion_activity_list.count('walking') / len(self.motion_activity_list)
-            # we simulate the peers activities as the normal distribution assuming that an average person would walk 3 hours a day
+            # we simulate the peers activities as the normal distribution assuming that an average person would walk
+            # 3 hours a day
             normal_dist = np.random.normal(loc=3 / 24, scale=1 / 24)
             if abs(act_frac - normal_dist) <= self.compete_threshold:
-                return random.uniform(0.1, 0.8) # increase of activity duration
+                return random.uniform(0.1, 0.8)  # increase of activity duration
         return 0
 
     def _break_record(self):
+        if self.patient_profile == 2 or (self.patient_profile == 3 and random.random() >= 0.5):
+            if self.record_broken and self.record > 0:
+                self.record_broken = False
+                return 1  # ???
         return 0
-
-
 
 
 def update_patient_arousal():
@@ -547,7 +556,3 @@ def update_patient_valence():
 
     """
     pass
-
-
-
-
