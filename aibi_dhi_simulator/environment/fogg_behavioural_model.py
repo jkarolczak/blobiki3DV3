@@ -499,7 +499,6 @@ class Patient(Env):
         # hours a day
         normal_dist = np.random.normal(loc=3 / 24, scale=1 / 24)
         if normal_dist < act_frac:
-            print('yes')
             return 1
         return 0
 
@@ -510,14 +509,14 @@ class Patient(Env):
             # 3 hours a day
             normal_dist = np.random.normal(loc=3 / 24, scale=1 / 24)
             if abs(act_frac - normal_dist) <= self.compete_threshold:
-                return random.uniform(0.1, 0.8)  # increase of activity duration
+                return random.uniform(0.1, 0.4)  # increase of activity duration
         return 0
 
     def _break_record(self):
         if self.patient_profile == 2 or (self.patient_profile == 3 and random.random() >= 0.5):
             if self.record_broken and self.record > 0:
                 self.record_broken = False
-                return 1  # ???
+                return random.uniform(0.1, 0.4)
         return 0
 
 
